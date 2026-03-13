@@ -11,14 +11,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var SECRET = []byte("secretkey")
-
 func Login(c *gin.Context) {
 
 	var input models.User
 	var user models.User
 
-	c.ShouldBindJSON(&input)
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
 
 	config.DB.Where("username = ?", input.Username).First(&user)
 
@@ -32,7 +33,11 @@ func Login(c *gin.Context) {
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	tokenString, _ := token.SignedString(SECRET)
+	tokenString, err := token.SignedString(config.JWT_SECRET)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
